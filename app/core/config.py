@@ -39,6 +39,26 @@ class Settings(BaseSettings):
         None  # Set to None to skip issuer validation, or set to expected issuer
     )
 
+    # Kafka Configuration
+    KAFKA_ENABLED: bool = True
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
+    KAFKA_GROUP_ID: str = "audit-service-group"
+    KAFKA_AUTO_OFFSET_RESET: str = "earliest"  # earliest, latest
+    KAFKA_ENABLE_AUTO_COMMIT: bool = True
+    KAFKA_AUTO_COMMIT_INTERVAL_MS: int = 1000
+    KAFKA_SESSION_TIMEOUT_MS: int = 30000
+    KAFKA_MAX_POLL_INTERVAL_MS: int = 300000
+
+    # Kafka Topics to consume
+    KAFKA_TOPICS: str = "user-events,employee-events,attendance-events,leave-events"
+
+    @property
+    def kafka_topics_list(self) -> List[str]:
+        """Parse KAFKA_TOPICS from comma-separated string."""
+        if isinstance(self.KAFKA_TOPICS, str):
+            return [topic.strip() for topic in self.KAFKA_TOPICS.split(",")]
+        return [self.KAFKA_TOPICS]
+
     # Audit Service Specific Settings
     RETENTION_DAYS: int = 365  # How many days to retain audit logs
     MAX_BATCH_SIZE: int = 1000  # Maximum batch size for bulk operations

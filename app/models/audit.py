@@ -3,32 +3,57 @@ Audit Log database model.
 Defines the SQLModel table structure for the AuditLog entity.
 """
 
-from sqlmodel import Field, SQLModel
 from datetime import datetime
 from enum import Enum
+
+from sqlmodel import Field, SQLModel
 
 
 class AuditLogType(str, Enum):
     """Enumeration of audit log types."""
 
+    # Leave management
     LEAVE_REQUEST = "leave_request"
     LEAVE_APPROVAL = "leave_approval"
+
+    # Attendance
     ATTENDANCE = "attendance"
+
+    # Payroll
     PAYROLL = "payroll"
+
+    # Employee management
     EMPLOYEE_UPDATE = "employee_update"
     EMPLOYEE_CREATE = "employee_create"
     EMPLOYEE_DELETE = "employee_delete"
+
+    # Policy management
     POLICY_UPDATE = "policy_update"
     POLICY_CREATE = "policy_create"
     POLICY_DELETE = "policy_delete"
+
+    # Document management
     DOCUMENT_UPLOAD = "document_upload"
     DOCUMENT_DELETE = "document_delete"
+
+    # Access control
     ROLE_ASSIGNMENT = "role_assignment"
     PERMISSION_CHANGE = "permission_change"
+
+    # Authentication
     LOGIN = "login"
     LOGOUT = "logout"
+
+    # Data operations
     EXPORT = "export"
     IMPORT = "import"
+
+    # User management (alias for compatibility)
+    USER_MANAGEMENT = "user_management"
+    EMPLOYEE_MANAGEMENT = "employee_management"
+
+    # System/Other
+    SYSTEM = "system"
     OTHER = "other"
 
 

@@ -1,12 +1,15 @@
 FROM python:3.13-alpine3.22 AS builder
 
-# Install build dependencies only in builder stage
-RUN apk add --no-cache \
-    pkgconfig \
+# Install system dependencies
+RUN apk add --no-cache pkgconfig gcc musl-dev mariadb-dev mariadb-connector-c-dev
+
+# Install build dependencies for confluent-kafka (librdkafka) and mysqlclient
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    musl-dev \
-    mariadb-dev \
-    mariadb-connector-c-dev
+    pkg-config \
+    librdkafka-dev \
+    default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -15,7 +18,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY . /app
 WORKDIR /app
 
-# Install the application dependencies using uv sync
+# Install the application dependencies
 RUN uv sync --frozen
 
 # Strip binaries to reduce size
@@ -72,4 +75,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Run the application
 CMD ["/app/.venv/bin/fastapi", "run", "app/main.py", "--port", "8000", "--host", "0.0.0.0"]
-
