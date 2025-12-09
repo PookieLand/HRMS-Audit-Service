@@ -3,12 +3,17 @@ FROM python:3.13-alpine3.22 AS builder
 # Install system dependencies
 RUN apk add --no-cache pkgconfig gcc musl-dev mariadb-dev mariadb-connector-c-dev
 
-# Install build dependencies for confluent-kafka (librdkafka) and mysqlclient
+# Install build dependencies for confluent-kafka (librdkafka v2.12.1+) and mysqlclient
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     pkg-config \
-    librdkafka-dev \
     default-libmysqlclient-dev \
+    curl \
+    gnupg \
+    && curl -fsSL https://packages.confluent.io/deb/7.9/archive.key | gpg --dearmor -o /usr/share/keyrings/confluent-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/confluent-archive-keyring.gpg] https://packages.confluent.io/deb/7.9 stable main" > /etc/apt/sources.list.d/confluent.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends librdkafka-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv

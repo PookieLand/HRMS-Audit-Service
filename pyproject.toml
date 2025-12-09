@@ -17,4 +17,5 @@ dependencies = [
     "aiokafka>=0.11.0",
     "urllib3>=2.6.0",
     "confluent-kafka>=2.3.0",
+    "redis>=5.0.0",
 ]

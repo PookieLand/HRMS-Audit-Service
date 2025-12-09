@@ -1,19 +1,20 @@
 """
 Kafka module using confluent-kafka library.
-Implements consumer for audit event processing.
+Implements consumer for audit event processing with support for the new topics registry.
 """
 
 import json
 import threading
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Callable
+from typing import Callable, Optional
 
 from confluent_kafka import Consumer, KafkaError, KafkaException, Producer
 from confluent_kafka.admin import AdminClient, NewTopic
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.topics import KafkaTopics
 
 logger = get_logger(__name__)
 
@@ -116,7 +117,7 @@ class KafkaConsumer:
     _consumer: Consumer | None = None
     _running: bool = False
     _thread: threading.Thread | None = None
-    _message_handler: Callable[[dict], None] | None = None
+    _message_handler: Callable[[dict, str], None] | None = None
 
     @classmethod
     def _create_consumer(cls) -> Consumer:
@@ -159,24 +160,27 @@ class KafkaConsumer:
                         logger.error(f"Consumer error: {msg.error()}")
                         continue
 
+                # Get topic name
+                topic = msg.topic()
+
                 # Deserialize message
                 try:
                     value = json.loads(msg.value().decode("utf-8"))
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to decode message: {e}")
+                    logger.error(f"Failed to decode message from {topic}: {e}")
                     continue
 
                 # Log message metadata
                 logger.info(
-                    f"Received message from {msg.topic()}[{msg.partition()}]@{msg.offset()}"
+                    f"Received message from {topic}[{msg.partition()}]@{msg.offset()}"
                 )
 
-                # Handle message
+                # Handle message - pass topic to handler
                 if cls._message_handler:
                     try:
-                        cls._message_handler(value)
+                        cls._message_handler(value, topic)
                     except Exception as e:
-                        logger.error(f"Error handling message: {e}")
+                        logger.error(f"Error handling message from {topic}: {e}")
 
             except KafkaException as e:
                 logger.error(f"Kafka exception: {e}")
@@ -184,6 +188,19 @@ class KafkaConsumer:
                 logger.error(f"Unexpected error in consumer loop: {e}")
 
         logger.info("Kafka consumer loop stopped")
+
+    @classmethod
+    def get_topics_to_subscribe(cls) -> list[str]:
+        """
+        Get the list of topics to subscribe to.
+        Uses the topics registry if available, otherwise falls back to config.
+        """
+        try:
+            # Use the topics registry
+            return KafkaTopics.all_subscribed_topics()
+        except Exception:
+            # Fallback to config
+            return settings.kafka_topics_list
 
     @classmethod
     async def start(cls):
@@ -203,9 +220,16 @@ class KafkaConsumer:
 
         # Create consumer and subscribe to topics
         cls._consumer = cls._create_consumer()
-        topics = settings.kafka_topics_list
+
+        # Get topics from registry
+        topics = cls.get_topics_to_subscribe()
+
+        if not topics:
+            logger.warning("No topics to subscribe to")
+            return
+
         cls._consumer.subscribe(topics)
-        logger.info(f"Subscribed to topics: {topics}")
+        logger.info(f"Subscribed to {len(topics)} topics: {topics[:10]}...")
 
         # Start background thread
         cls._running = True
@@ -235,6 +259,11 @@ class KafkaConsumer:
             cls._consumer = None
 
         logger.info("Kafka consumer stopped")
+
+    @classmethod
+    def is_running(cls) -> bool:
+        """Check if the consumer is running."""
+        return cls._running
 
 
 class KafkaAdmin:
@@ -296,6 +325,16 @@ class KafkaAdmin:
             return False
 
     @classmethod
+    def create_audit_topics(cls) -> bool:
+        """Create all audit-related topics."""
+        topics = KafkaTopics.all_subscribed_topics()
+        success = True
+        for topic in topics:
+            if not cls.create_topic(topic):
+                success = False
+        return success
+
+    @classmethod
     def list_topics(cls) -> list[str]:
         """List all topics."""
         client = cls.get_client()
@@ -329,12 +368,14 @@ def health_check() -> dict:
                 "status": "healthy",
                 "broker_count": len(metadata.brokers),
                 "topic_count": len(metadata.topics),
+                "consumer_running": KafkaConsumer.is_running(),
             }
     except Exception as e:
         return {
             "kafka_enabled": True,
             "status": "unhealthy",
             "error": str(e),
+            "consumer_running": KafkaConsumer.is_running(),
         }
 
     return {"kafka_enabled": True, "status": "unknown"}
