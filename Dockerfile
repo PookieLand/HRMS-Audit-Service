@@ -1,7 +1,4 @@
-FROM python:3.13-alpine3.22 AS builder
-
-# Install system dependencies
-RUN apk add --no-cache pkgconfig gcc musl-dev mariadb-dev mariadb-connector-c-dev
+FROM python:3.13-slim AS builder
 
 # Install build dependencies for confluent-kafka (librdkafka v2.12.1+) and mysqlclient
 RUN apt-get update && apt-get install -y --no-install-recommends \
