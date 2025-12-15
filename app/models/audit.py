@@ -6,6 +6,7 @@ Defines the SQLModel table structure for the AuditLog entity.
 from datetime import datetime
 from enum import Enum
 
+from sqlalchemy import Column, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -69,8 +70,12 @@ class AuditLog(SQLModel, table=True):
     log_type: AuditLogType = Field(index=True, nullable=False)
     entity_type: str = Field(index=True, max_length=255, nullable=False)
     entity_id: str = Field(index=True, max_length=255, nullable=False)
-    old_values: str | None = Field(default=None, nullable=True)  # JSON string
-    new_values: str | None = Field(default=None, nullable=True)  # JSON string
+    old_values: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )  # JSON string
+    new_values: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )  # JSON string
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, index=True, nullable=False
     )
