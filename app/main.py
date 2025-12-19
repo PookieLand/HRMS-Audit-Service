@@ -117,7 +117,7 @@ app.add_middleware(
 
 
 # Include routers
-app.include_router(audit_logs_router, prefix="/api/v1/audit")
+app.include_router(audit_logs_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["health"])
